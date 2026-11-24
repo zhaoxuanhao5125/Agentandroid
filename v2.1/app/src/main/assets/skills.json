@@ -1,0 +1,16 @@
+[
+ {"id":"copilot","name":"通用领航","category":"通用","mode":"auto","description":"根据任务决定直接回答，还是为选中的应用拟定操作步骤。","prompt":"优先用最少步骤完成请求；不要为不需要手机操作的任务生成动作。"},
+ {"id":"launch","name":"应用导航","category":"手机","mode":"phone","description":"打开所选应用，按可见标签寻找指定功能。","prompt":"打开目标应用。如用户给了明确的可见标签，才安排后续点击；否则让用户手动寻找。"},
+ {"id":"calc","name":"桌面计算器","category":"手机","mode":"phone","description":"把简单算式拆成计算器上可以核对的按键。","prompt":"仅在所选目标是计算器时规划。为每一个明确的屏幕按键生成一个 click，不要生成手势；超出步骤上限时缩短为可执行的前半段并说明。"},
+ {"id":"browse","name":"长页翻阅","category":"手机","mode":"phone","description":"在目标应用中按指定方向翻页，逐步确认。","prompt":"只生成 open 或 scroll。向下翻页 direction=down，向上回看 direction=up，次数不明确时只翻一页。"},
+ {"id":"draft","name":"输入草稿","category":"手机","mode":"phone","description":"把整理好的短文填入已聚焦的普通文本框，不发送。","prompt":"只生成 fill，不发送、不提交。提示用户打开目标页面并聚焦文本框；确保草稿简短。"},
+ {"id":"sum","name":"三点摘要","category":"写作","mode":"answer","description":"将粘贴的内容压缩成三个重点和一个待确认的问题。","prompt":"仅根据用户提供的材料，提炼三个具体要点，以及一个材料未回答的问题。"},
+ {"id":"rewrite","name":"文字打磨","category":"写作","mode":"answer","description":"保留原意，给出一个自然简洁、可直接复制的版本。","prompt":"保留数字、事实与专有名词。输出精简改写正文，再用一句话说明主要改动。"},
+ {"id":"translate","name":"双语随行","category":"写作","mode":"answer","description":"翻译粘贴的片段，并指出值得保留的术语。","prompt":"根据用户指定的语言方向翻译；没有指定则中英互译。对歧义标记，不编造专有名词。"},
+ {"id":"todo","name":"行动清单","category":"规划","mode":"answer","description":"把杂乱的想法拆成今天就能开始的小任务。","prompt":"整理成不超过五项清单，用动词开头，标出第一步；不要虚构截止日期。"},
+ {"id":"meeting","name":"会议整理","category":"规划","mode":"answer","description":"从笔记里提取结论、负责人和待办，缺失信息标为待定。","prompt":"分结论、行动项、未决问题输出。负责人和日期只使用原文，不明确写待定。"},
+ {"id":"compare","name":"方案对照","category":"规划","mode":"answer","description":"按用户最在意的维度比较方案，指出取舍。","prompt":"先列出比较维度，再给出基于用户条件的推荐；将事实与假设分开。"},
+ {"id":"research","name":"资料侦察","category":"搜索","mode":"research","description":"用已配置的搜索 API 检索资料，整理摘要并列出来源。","prompt":"只根据返回的资料概括。每个主要论断注明对应的来源网址；资料不足则说明。"},
+ {"id":"verify","name":"线索核对","category":"搜索","mode":"research","description":"比对搜索摘要中的证据与分歧，不把单一来源当作定论。","prompt":"以证据支持、存在分歧、尚未核实三组整理。列出用到的来源链接，避免仅凭摘要断言。"},
+ {"id":"terms","name":"术语速查","category":"搜索","mode":"research","description":"检索术语的资料来源，用一个例子解释它的含义。","prompt":"优先根据提供的官方或一手资料解释术语，提供简短例子和来源网址。"}
+]

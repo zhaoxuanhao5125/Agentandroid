@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+  <queries><intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent></queries>
+  <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:theme="@style/PilotTheme" android:allowBackup="false" android:dataExtractionRules="@xml/pilot_no_backup" android:usesCleartextTraffic="false" android:supportsRtl="true" android:hardwareAccelerated="true">
+    <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode" android:launchMode="singleTop">
+      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+    </activity>
+    <service android:name=".PilotAccess" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true" android:label="@string/access_title">
+      <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+      <meta-data android:name="android.accessibilityservice" android:resource="@xml/pilot_access"/>
+    </service>
+  </application>
+</manifest>

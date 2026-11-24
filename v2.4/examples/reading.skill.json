@@ -1,0 +1,1 @@
+{"version":1,"skills":[{"id":"reading-notes","name":"阅读卡片","description":"把粘贴的阅读片段整理成一句结论、三个证据与一个反问。","mode":"answer","prompt":"仅依据用户提供的片段，依次写出结论、三个证据和一个反问。证据不足时明确指出。"}]}

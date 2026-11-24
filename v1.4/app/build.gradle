@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.pilot.onething'
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId 'io.pilot.onething'
+        testInstrumentationRunner 'io.pilot.onething.PilotDeviceTests'
+        minSdk 29
+        targetSdk 34
+        versionCode 5
+        versionName '1.4'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // Exercise the real module configuration without reading or changing app/src.
+    if (providers.gradleProperty('smokeOnly').isPresent()) {
+        sourceSets.main.setRoot('../smoke/src/main')
+        layout.buildDirectory.set(rootProject.layout.projectDirectory.dir('smoke/build/gradle'))
+    }
+}

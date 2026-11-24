@@ -1,0 +1,6 @@
+<resources>
+  <style name="PilotTheme" parent="@style/PilotBaseTheme">
+    <item name="android:windowSplashScreenBackground">#09151d</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_prism</item>
+  </style>
+</resources>

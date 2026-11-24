@@ -1,0 +1,145 @@
+/* Local presentation only. The host owns storage, networking, permissions and actions. */
+(() => {
+'use strict';
+const $=id=>document.getElementById(id), list=s=>Array.from(document.querySelectorAll(s));
+const paths={device:'M8 2.5h8a1.7 1.7 0 0 1 1.7 1.7v15.6a1.7 1.7 0 0 1-1.7 1.7H8a1.7 1.7 0 0 1-1.7-1.7V4.2A1.7 1.7 0 0 1 8 2.5z M10 5h4m-2 13.5h.01',angle:'m9 5 7 7-7 7',chevron:'m6 9 6 6 6-6',terminal:'M4 5h16v14H4z M7.5 9l2.7 2.7-2.7 2.7m5.5 0h3.5',layers:'m12 3 9 5-9 5-9-5z M3 12l9 5 9-5M3 16l9 5 9-5',flight:'m3 11 17-7-6.5 16-3.2-7.3L3 11z M10.3 12.7l5.9-5.4',app:'M4 8V5a1 1 0 0 1 1-1h4m6 0h4a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-3 M8 15l7-7m-6 0h6v6',upRight:'M6 18 18 6M7 6h11v11',globe:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z M3.5 10h17m-17 4h17 M12 3c4 4.1 4 13.9 0 18-4-4.1-4-13.9 0-18z',deck:'M3 13.5 12 4l9 9.5 M5.5 11.5V20h5v-6h3v6h5v-8.5',sliders:'M4 7h5m4 0h7M4 17h10m4 0h2 M13 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M18 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0z',search:'M16.5 10.5a6 6 0 1 1-12 0 6 6 0 0 1 12 0z M15.2 15.2 21 21',import:'M12 3v11m-4-4 4 4 4-4 M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5',cpu:'M6 6h12v12H6z M9 2v4m6-4v4m-6 12v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M9 9h6v6H9z',pulse:'M2 13h4l3-7 4 13 3-8 2 2h4',check:'m4.5 12 5 5L20 6.5',hand:'M7 14 6 7c0-1.8 2.5-2 2.8-.3l.9 4.1-.4-7c0-1.6 2.4-1.8 2.6 0l.7 7.1.4-6c.2-1.7 2.6-1.5 2.6.2l-.1 6.3.8-4.3c.4-1.6 2.6-1.1 2.3.6l-.6 7.7c-.4 3.4-2.1 5.4-5.6 5.6-2.8.1-4.5-1.4-6-3.4L3.5 14c-1-1.7 1-2.9 2.2-1.6L7 14z',overlay:'M4 5h15v11H4z M8 19h13V9 M8 9h6v3H8z',wave:'M3 12c3-9 6-9 9 0s6 9 9 0',x:'m6 6 12 12M18 6 6 18',log:'M3 6h18M3 12h12M3 18h7m6-1 2 2 3-4',pen:'m5 15 11-11 4 4L9 19l-5 1z M14 6l4 4',plan:'M4 5h3v3H4z M11 6.5h9M4 11h3v3H4z M11 12.5h9M4 17h3v3H4z M11 18.5h6',stop:'M6 6h12v12H6z',compass:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z M15.5 8.5l-2 5-5 2 2-5z'};
+function icon(k){const ns='http://www.w3.org/2000/svg',s=document.createElementNS(ns,'svg'),p=document.createElementNS(ns,'path');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('class','ic');s.setAttribute('aria-hidden','true');s.setAttribute('focusable','false');p.setAttribute('d',paths[k]||paths.compass);s.appendChild(p);return s;}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=String(text);return e;}
+function symbol(k,cls){const i=el('i',cls);i.appendChild(icon(k));return i;}
+function clear(n){while(n.firstChild)n.removeChild(n.firstChild);}
+function text(id,t){$(id).textContent=t;}
+function on(id,fn){$(id).addEventListener('click',fn);}
+list('[data-icon]').forEach(e=>e.appendChild(icon(e.dataset.icon)));
+let state=null,page='deck',previousPage='deck',skillId='',category='',pane='model',sheet=null,lastFocus=null,lastAction='',noticeTimer=0,uiModel='',uiSearch='',customSelection={model:false,search:false},pending=null;
+const scrolls={deck:0,skills:0,links:0,device:0}, drafts=new Map(),globalEdits=new Map();
+// Conversational deck: ask / plan / crafts. Messages are presentation-only (never sent to storage).
+let chatMode='ask',messages=[],chatBusy=false;
+const bridge=()=>window.Pilot && typeof window.Pilot.invoke==='function';
+function toast(t,error=false){if(!t)return;const a=$('toast');a.textContent=t;a.dataset.error=String(error);a.hidden=false;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>a.hidden=true,error?5500:3200);}
+function invoke(op,args={}){if(!bridge()){if(op!=='state')toast('请在 Android 应用中使用此功能。',true);return false;}try{if(op!=='state')lastAction=op;window.Pilot.invoke(JSON.stringify(Object.assign({op},args)));return true;}catch(_){toast('无法连接到 Android 主机，请返回应用重试。',true);return false;}}
+function busy(){return !!(state&&(state.busy||state.active));}
+function navigate(p,options={}){if(!['deck','skills','links','device'].includes(p))return;const old=page;if(old!==p){scrolls[old]=window.scrollY;previousPage=old;page=p;}Array.from($('main').querySelectorAll('.screen')).forEach(s=>{s.hidden=s.id!=='screen-'+p;s.classList.toggle('screen-enter',!s.hidden&&old!==p);});list('.nav-inner button').forEach(b=>{if(b.dataset.page===p)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(p==='device')$('device-link').setAttribute('aria-current','page');else $('device-link').removeAttribute('aria-current');document.title='pilot one thing · '+({deck:'指挥台',skills:'技能库',links:'连接',device:'设备'}[p]);if(p==='skills')renderSkills();if(p==='links')renderSettings();if(old!==p){$('main').focus({preventScroll:true});window.scrollTo({top:options.top?0:scrolls[p]||0,behavior:'auto'});}window.dispatchEvent(new Event('pilot-visibility'));}
+list('[data-page]').forEach(b=>on(b.id||(b.id='nav-'+b.dataset.page),()=>navigate(b.dataset.page)));on('brand',()=>navigate('deck',{top:true}));on('device-link',()=>navigate('device',{top:true}));on('choose-skill',()=>navigate('skills',{top:true}));
+function empty(parent,title,desc,k){const e=el('div','empty'),d=el('div');e.appendChild(icon(k));d.appendChild(el('b','',title));if(desc)d.appendChild(el('span','',desc));e.appendChild(d);parent.appendChild(e);}
+function openSheet(opts){if(sheet)closeSheet(false);sheet=opts;lastFocus=document.activeElement;$('sheet-backdrop').hidden=false;document.querySelector('.shell').setAttribute('inert','');document.querySelector('.tabbar').setAttribute('inert','');document.body.style.overflow='hidden';text('sheet-title',opts.title);text('sheet-kicker',opts.kicker||'QUICK ACTION');text('sheet-note',opts.note||'');text('sheet-detail',opts.detail||'');$('sheet-detail').hidden=!opts.detail;$('sheet-query').hidden=!opts.query;$('sheet-query').value='';$('sheet-response').hidden=true;text('sheet-submit',opts.button||'完成');$('sheet-submit').disabled=false;(opts.query?$('sheet-query'):$('sheet-close')).focus({preventScroll:true});}
+function closeSheet(restore=true){if(!sheet)return;sheet=null;$('sheet-backdrop').hidden=true;document.querySelector('.shell').removeAttribute('inert');document.querySelector('.tabbar').removeAttribute('inert');document.body.style.overflow='';const focus=lastFocus;lastFocus=null;if(restore&&focus&&focus.isConnected)focus.focus({preventScroll:true});}
+on('sheet-close',()=>closeSheet());$('sheet-backdrop').addEventListener('click',e=>{if(e.target===$('sheet-backdrop'))closeSheet();});on('sheet-submit',()=>{if(!sheet)return;const s=sheet,query=$('sheet-query').value.trim();if(s.query&&!query){text('sheet-response','请先输入搜索关键词。');$('sheet-response').hidden=false;$('sheet-query').focus();return;}if(s.act)s.act(query);else closeSheet();});$('sheet-query').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('sheet-submit').click();}});
+window.pilotBack=()=>{if(sheet){closeSheet();return true;}if(page!=='deck'){navigate(page==='device'&&previousPage!=='device'?previousPage:'deck');return true;}return false;};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&window.pilotBack())e.preventDefault();if(sheet&&e.key==='Tab'){const items=Array.from($('sheet-backdrop').querySelectorAll('button,input')).filter(n=>!n.hidden&&!n.disabled),first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
+function querySheet(bing){openSheet({title:bing?'Bing 搜索':'测试搜索服务',kicker:bing?'BROWSER SEARCH':'SEARCH TEST',note:bing?'关键词将交给系统浏览器。无需密钥，查看结果需要联网。':'将使用已保存的搜索配置发送一次请求，服务方可能计费。',query:true,button:bing?'打开 Bing':'发送测试查询',act:q=>{if(invoke(bing?'bing':'search',{query:q}))closeSheet();}});}
+/* ---- Conversational transcript ---- */
+const modeTag={ask:'问 · ASK',plan:'谋 · PLAN',crafts:'造 · CRAFTS'};
+function renderMessages(){
+  const box=$('chat-thread');clear(box);
+  if(!messages.length){
+    const w=el('div','chat-welcome'),m=el('div','chat-welcome-mark');m.appendChild(icon('compass'));
+    w.append(m,el('strong','','一次，只做一件事。'),el('p','','选一种模式，然后告诉我任务。问会直接回答；谋会列出可确认的步骤；造会逐步执行，每步都由你点头。'));
+    box.appendChild(w);return;
+  }
+  messages.forEach(msg=>{
+    const row=el('div','chat-msg '+(msg.role==='user'?'from-user':'from-ai'));
+    if(msg.role==='user'){const b=el('div','bubble');b.textContent=msg.text;row.appendChild(b);}
+    else{
+      const head=el('div','msg-head');head.append(el('span','ai-avatar'),el('span','ai-name','领航员'),el('span','msg-mode',modeTag[msg.mode]||msg.role));
+      const b=el('div','bubble');
+      if(msg.pending){const d=el('span','typing');d.append(el('i'),el('i'),el('i'));b.appendChild(d);}
+      else b.textContent=msg.text||'';
+      row.append(head,b);
+      if(msg.plan&&!msg.pending)row.appendChild(planCard(msg));
+      if(msg.error){const e=el('div','msg-error');e.textContent=msg.error;row.appendChild(e);}
+    }
+    box.appendChild(row);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+function planCard(msg){
+  const plan=msg.plan,card=el('div','plan-card'),hd=el('div','plan-head');
+  hd.append(el('strong','','操作计划'),el('span','plan-count',(plan.steps||[]).length+' 步'));
+  card.appendChild(hd);
+  const steps=plan.steps||[],listEl=el('ol','plan-steps');
+  steps.forEach(s=>{const li=el('li','',describeStep(s));listEl.appendChild(li);});
+  card.appendChild(listEl);
+  const tgt=plan.target||{},note=el('p','plan-note',tgt.label?('目标 · '+tgt.label):'尚未选择目标应用，执行前请在「设备」中选择。');card.appendChild(note);
+  const acts=el('div','plan-actions'),run=el('button','primary compact','确认执行'),skip=el('button','ghost compact','放弃');
+  run.type='button';skip.type='button';
+  if(!steps.length||!tgt.pkg)run.disabled=true;
+  run.onclick=()=>{
+    if(!bridge()){toast('请在 Android 应用中使用此功能。',true);return;}
+    run.disabled=true;
+    if(invoke('executePlan',{plan})){skip.disabled=true;msg.executed=true;renderMessages();}
+    else{run.disabled=false;}
+  };
+  skip.onclick=()=>{msg.plan=null;renderMessages();};
+  if(msg.executed){acts.appendChild(el('span','plan-done','已提交执行 · 请在弹窗中逐步确认'));}
+  else acts.append(run,skip);
+  card.appendChild(acts);return card;
+}
+function describeStep(s){switch(s.action){case 'open':return '打开所选应用';case 'click':return '点击「'+(s.text||'')+'」';case 'fill':return '填入草稿「'+(s.text||'')+'」';case 'scroll':return s.direction==='up'?'向上翻页':'向下翻页';default:return s.action||'操作';}}
+on('quick-bing',()=>querySheet(true));on('demo',()=>invoke('demo'));on('target',()=>invoke('target'));on('access',()=>invoke('permissions',{kind:'access'}));on('overlay',()=>invoke('permissions',{kind:'overlay'}));on('import',()=>invoke('import'));
+on('run',()=>sendChat());
+function sendChat(){
+  if(busy()||chatBusy){if(invoke('stop')){chatBusy=false;renderMessages();syncSendButton();if(pending){pending=null;controls();}}return;}
+  const text=$('task').value.trim();if(!text){$('task').focus();toast('先说一句你想做的事。');return;}
+  const history=messages.filter(m=>(m.role==='user'||m.role==='assistant')&&!m.pending).map(m=>({role:m.role,content:m.text}));
+  const payload={text,mode:chatMode,history};
+  if(skillId)payload.skill=skillId;
+  messages.push({role:'user',text});
+  messages.push({role:'assistant',text:'',pending:true,mode:chatMode});
+  $('task').value='';chatBusy=true;renderMessages();syncSendButton();
+  if(!invoke('chat',payload)){messages=messages.filter(m=>!m.pending);chatBusy=false;renderMessages();syncSendButton();}
+}
+function syncSendButton(){const f=$('run');if(!f)return;f.querySelector('span').textContent=busy()||chatBusy?'停止':'发送';const i=f.querySelector('i');if(i){clear(i);i.appendChild(icon(busy()||chatBusy?'stop':'flight'));}}
+$('task').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('run').click();}});
+function setMode(mode){if(!['ask','plan','crafts'].includes(mode))return;chatMode=mode;const map={ask:'问',plan:'谋',crafts:'造'};
+  list('.mode-tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.mode===mode)));text('compose-mode',map[mode]);
+  $('task').placeholder={ask:'问我任何问题，或让我帮你梳理…',plan:'描述任务，我来制定可确认的步骤…',crafts:'描述任务，我来分步执行（每步需你确认）…'}[mode];
+}
+on('dismiss-result',()=>{$('result-panel').hidden=true;});
+function copyResult(){const t=$('result-text').textContent;if(!t){toast('暂无可复制的内容。');return;}let ok=false;try{const a=el('textarea');a.value=t;a.setAttribute('readonly','');a.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);ok=document.execCommand('copy');document.body.removeChild(a);}catch(_){ok=false;}if(ok)toast('结果已复制到剪贴板。');else toast('复制失败，可长按结果文本手动复制。',true);}
+on('copy-result',copyResult);on('clear-history',()=>openSheet({title:'清除最近事件？',kicker:'FLIGHT LOG',note:'此操作只删除本机事件记录，不会清除技能、密钥或连接配置。',button:'确认清除',act:()=>{if(invoke('clearHistory'))closeSheet();}}));
+function renderDeck(){const skills=state&&state.skills||[],sel=skills.find(s=>s.id===skillId);text('skill-label',sel?sel.name:'选择技能');text('task-status',state?(state.busy?'处理中':state.active?'执行中':'待命'):(bridge()?'读取中':'未连接'));$('task-status').dataset.on=String(!!state);const flight=$('run');flight.querySelector('span').textContent=busy()||chatBusy?'停止':'发送';const ico=flight.querySelector('i');clear(ico);ico.appendChild(icon(busy()||chatBusy?'stop':'flight'));['demo','quick-bing','import','target','access','overlay','clear-history'].forEach(k=>$(k).disabled=!!(state&&state.busy));text('target-label',state?(state.target&&state.target.pkg?((state.target.label||'目标应用')+' · '+state.target.pkg):'尚未选择 · 选择可操作的应用'):'未获取设备状态');text('access-label',state?(state.access?'已开启 · 前往系统设置':'未开启 · 查看并授权'):'未获取设备状态');text('overlay-label',state?(state.overlay?'已允许 · 前往系统设置':'未允许 · 查看并授权'):'未获取设备状态');const h=$('history-list'),history=state&&Array.isArray(state.history)?state.history:[];clear(h);$('clear-history').hidden=!history.length;$('history-label').hidden=!!history.length;if(!history.length){empty(h,state?'暂无事件':'尚未读取设备记录',state?'开始任务后，执行记录会出现在这里。':'最近事件由 Android 主机提供。','log');return;}history.forEach(raw=>{const row=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};const b=el('button','history-row'),date=new Date(row.time),valid=!!row.time&&Number.isFinite(date.getTime()),stamp=valid?date.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false}):'';b.append(el('span','log-dot'),el('span','',typeof row.message==='string'?row.message:''),el('time','',stamp));b.onclick=()=>openSheet({title:'事件详情',kicker:'FLIGHT LOG',note:valid?date.toLocaleString('zh-CN'):'',detail:row.message});h.appendChild(b);});}
+const categoryIcon={通用:'compass',手机:'device',写作:'pen',规划:'plan',搜索:'globe',编程:'terminal',学习:'compass',办公:'plan',创意:'pen',自定义:'layers'};
+const modeLabel={auto:'智能',answer:'回答',phone:'手机',research:'检索'};
+function renderSkills(){const skills=state&&state.skills||[],cats=Array.from(new Set(skills.map(s=>s.category).filter(Boolean)));if(category&&!cats.includes(category))category='';const c=$('categories');clear(c);[''].concat(cats).forEach(k=>{const b=el('button','',k||'全部');b.type='button';b.setAttribute('aria-pressed',String(k===category));b.onclick=()=>{category=k;renderSkills();Array.from(c.children).find(n=>n.textContent===(k||'全部')).focus({preventScroll:true});};c.appendChild(b);});const q=$('skill-search').value.trim().toLowerCase(),matched=skills.filter(s=>(!category||s.category===category)&&[s.name,s.category,s.description].join(' ').toLowerCase().includes(q)),g=$('skills-list');clear(g);text('skills-count',state?((category||'全部')+'技能 · '+matched.length):'全部技能');if(!matched.length){empty(g,!state?'未读取技能库':skills.length?'没有匹配的技能':'暂无可用技能',!state?'在 Android 应用中查看或导入技能。':skills.length?'尝试其他关键词或分类。':'从本机导入可信的技能文件。','layers');return;}matched.forEach(s=>{const b=el('button','skill-card'),tx=el('span','skill-text');b.type='button';b.setAttribute('aria-pressed',String(s.id===skillId));const hd=el('span','skill-heading');hd.append(el('strong','',s.name),el('span','skill-mode',modeLabel[s.mode]||s.mode||'技能'));if(s.mode)hd.lastChild.setAttribute('data-mode',s.mode);tx.append(hd,el('small','',s.description||s.category));b.append(symbol(categoryIcon[s.category]||'layers','tile-icon'),tx,symbol(s.id===skillId?'check':'angle','mark'));b.onclick=()=>{const how={answer:'直接回答 · 不操作手机',phone:'生成手机操作步骤，需先选目标应用',research:'联网检索并整理资料',auto:'按任务自动决定'};openSheet({title:s.name,kicker:'SKILL / '+(s.category||'LIBRARY'),note:(modeLabel[s.mode]||s.mode)+' · '+(how[s.mode]||'')+' · '+(s.description||''),detail:s.prompt,button:'使用此技能',act:()=>{skillId=s.id;closeSheet(false);renderDeck();navigate('deck',{top:true});toast('已选用「'+s.name+'」');}});};g.appendChild(b);});}
+$('skill-search').addEventListener('input',renderSkills);
+const globalFields=['temperature','topP','maxTokens','systemPrompt'];const scopes={model:['endpoint','model','key','clearKey'],search:['searchEndpoint','searchKey','clearSearchKey','searchMethod','searchHeader','searchParam','searchAuthPrefix','searchResultsPath','searchTitleField','searchUrlField','searchSnippetField']};const customFields=scopes.search.slice(3),presetKeys={endpoint:'endpoint',model:'model',searchEndpoint:'endpoint',searchMethod:'method',searchHeader:'authHeader',searchParam:'queryField',searchAuthPrefix:'authPrefix',searchResultsPath:'resultsPath',searchTitleField:'titleField',searchUrlField:'urlField',searchSnippetField:'snippetField'};
+function cfg(){return state&&state.settings||{};}
+function presets(s){return state&&(s==='model'?state.modelPresets:state.searchPresets)||[];}
+function selected(s){return s==='model'?uiModel:uiSearch;}
+function persisted(s){const c=cfg();return s==='model'?(c.provider||c.modelProvider||''):(c.searchProvider||'');}
+function mapFor(s,id=selected(s)){const k=s+':'+id;if(!drafts.has(k))drafts.set(k,new Map());return drafts.get(k);}
+function profile(s){return presets(s).find(p=>p.id===selected(s))||{};}
+function base(s,k){const c=cfg(),p=profile(s),active=selected(s)===persisted(s);if(globalFields.includes(k))return (c[k]!=null?c[k]:'');if(['clearKey','clearSearchKey'].includes(k))return false;if(['key','searchKey'].includes(k))return '';if(active&&c[k]!=null)return c[k];if(active&&k==='endpoint'&&c.modelEndpoint!=null)return c.modelEndpoint;return (p[presetKeys[k]]!=null?p[presetKeys[k]]:'');}
+function current(s,k){const d=globalFields.includes(k)?globalEdits:mapFor(s);return d.has(k)?d.get(k):base(s,k);}
+function remember(s,k,v){const d=globalFields.includes(k)?globalEdits:mapFor(s);if(String(v)===String(base(s,k)))d.delete(k);else d.set(k,v);}
+function hasKey(s){const p=profile(s),c=cfg();return selected(s)===persisted(s)?(s==='model'?(c.hasKey!=null?c.hasKey:(c.hasModelKey!=null?c.hasModelKey:p.hasKey)):(c.hasSearchKey!=null?c.hasSearchKey:p.hasKey)):p.hasKey;}
+function patch(s){const v={},sel=selected(s);if(sel&&sel!==persisted(s))v[s==='model'?'provider':'searchProvider']=sel;for(const [k,x] of mapFor(s)){if(s==='search'&&(sel==='bing'||(sel!=='custom'&&customFields.includes(k))))continue;if(k==='key'||k==='searchKey'){if(String(x).trim())v[k]=String(x).trim();}else v[k]=x;}if(s==='model')for(const [k,x] of globalEdits)v[k]=x;return v;}
+function populate(id,rows,value){const n=$(id),sig=JSON.stringify(rows.map(p=>[p.id,p.name]));if(n.dataset.sig!==sig){clear(n);if(!rows.length)n.appendChild(new Option(bridge()?'等待主机配置':'未连接 Android 主机',''));rows.forEach(p=>n.appendChild(new Option(p.name,p.id)));n.dataset.sig=sig;}if(n.value!==value)n.value=value;}
+function keyUI(s){const isM=s==='model',k=isM?'key':'searchKey',rm=isM?'clearKey':'clearSearchKey',exists=hasKey(s),remove=!!current(s,rm);text(k+'-state',remove?'待删除':exists?'已保存':state?'未设置':'');$(k).placeholder=remove?'保存后删除密钥':exists?'留空以保留已保存的密钥':'输入 API 密钥';$(rm).hidden=!exists;$(rm).textContent=remove?'撤销密钥删除':'删除已保存的'+(isM?'模型':'搜索')+'密钥';$(rm).setAttribute('aria-pressed',String(remove));}
+function controls(){const changed=Object.keys(patch(pane)).length>0,blocked=!!(state&&state.busy)||!!pending;text('config-note',!state?'原生配置尚未载入。请在 Android 应用中使用连接服务。':changed?'有未保存的更改。请先保存，再测试当前配置。':'仅在保存后应用更改。测试使用已保存的配置。');$('test').disabled=blocked||changed||!state;$('save').disabled=blocked||!changed||!state;textOfTest();['model','search'].forEach(keyUI);}
+function textOfTest(){$('test').querySelector('span').textContent=pane==='model'?'测试连接':uiSearch==='bing'?'试用 Bing':'测试搜索';}
+function renderSettings(){if(!customSelection.model)uiModel=persisted('model');if(!customSelection.search)uiSearch=persisted('search');populate('provider',presets('model'),uiModel);populate('searchProvider',presets('search'),uiSearch);['model','search'].forEach(s=>{for(const k of scopes[s].concat(s==='model'?globalFields:[])){if(k==='clearKey'||k==='clearSearchKey')continue;const val=String(current(s,k));if($(k).value!==val)$(k).value=val;}});$('model-panel').hidden=pane!=='model';$('search-panel').hidden=pane!=='search';$('bing-note').hidden=uiSearch!=='bing';$('api-search').hidden=!uiSearch||uiSearch==='bing';$('advanced-search').hidden=uiSearch!=='custom';$('model-tab').setAttribute('aria-pressed',String(pane==='model'));$('search-tab').setAttribute('aria-pressed',String(pane==='search'));controls();}
+['model','search'].forEach(s=>{const id=s==='model'?'provider':'searchProvider',k=s==='model'?'key':'searchKey',rm=s==='model'?'clearKey':'clearSearchKey';$(id).addEventListener('change',()=>{if(s==='model')uiModel=$(id).value;else uiSearch=$(id).value;customSelection[s]=selected(s)!==persisted(s);renderSettings();});on(s+'-tab',()=>{pane=s;renderSettings();});on(rm,()=>{const next=!current(s,rm);remember(s,rm,next);if(next){remember(s,k,'');$(k).value='';}controls();});scopes[s].concat(s==='model'?globalFields:[]).filter(f=>f!==rm).forEach(f=>{$(f).addEventListener('input',()=>{remember(s,f,$(f).value);if(f===k&&$(k).value)remember(s,rm,false);controls();});});});
+function configError(k,msg){toast(msg,true);const input=$(k),d=input.closest('details');if(d)d.open=true;input.focus();return false;}
+$('settings-form').addEventListener('submit',e=>{e.preventDefault();if(!state||pending||state.busy)return;const val=patch(pane);if(!Object.keys(val).length){toast('没有需要保存的更改。');return;}for(const k of ['temperature','topP','maxTokens']){if(!(k in val))continue;const n=Number(val[k]);if(val[k]===''||!Number.isFinite(n)||(k==='temperature'?(n<0||n>2):k==='topP'?(n<=0||n>1):(!Number.isInteger(n)||n<1||n>32768))){configError(k,k==='temperature'?'温度须在 0 到 2 之间。':k==='topP'?'Top P 须大于 0 且不超过 1。':'输出上限须为 1 到 32768 的整数。');return;}val[k]=n;}for(const k of ['endpoint','searchEndpoint'])if(k in val&&val[k]){let u;try{u=new URL(val[k]);}catch(_){}if(!u||u.protocol!=='https:'||u.search||u.hash||u.username||u.password){configError(k,'请填写完整 HTTPS 请求地址，不包含查询串、片段或用户凭据。');return;}}
+const edits=new Map(mapFor(pane)),globals=pane==='model'?new Map(globalEdits):new Map();pending={scope:pane,id:selected(pane),edits,globals};controls();if(!invoke('save',{data:val})){pending=null;controls();}});
+function ackSave(){if(!pending)return;const {scope,id,edits,globals}=pending,d=mapFor(scope,id);for(const [k,x] of edits)if(d.get(k)===x)d.delete(k);for(const [k,x] of globals)if(globalEdits.get(k)===x)globalEdits.delete(k);if(selected(scope)===id)customSelection[scope]=false;pending=null;renderSettings();invoke('state');}
+on('test',()=>{if(pane==='search'){querySheet(uiSearch==='bing');return;}openSheet({title:'测试模型连接',kicker:'MODEL TEST',note:'将向已保存的模型地址发送一条简短测试消息，服务方可能计费。',button:'发送测试',act:()=>{if(invoke('test'))closeSheet();}});});
+window.onPilotState=value=>{try{if(typeof value==='string')value=JSON.parse(value);}catch(_){return;}if(!value||typeof value!=='object'||Array.isArray(value))return;state=value;const sk=Array.isArray(state.skills)?state.skills:[];if(!sk.some(s=>s.id===skillId))skillId=(sk.find(s=>s.id==='copilot')||sk[0]||{}).id||'';renderDeck();if(page==='skills')renderSkills();renderSettings();};
+window.onPilotEvent=ev=>{try{if(typeof ev==='string')ev=JSON.parse(ev);}catch(_){return;}if(!ev||typeof ev.message!=='string')return;const m=ev.message;if(ev.type==='error'){if(pending){pending=null;controls();}chatBusy=false;syncSendButton();const t=messages[messages.length-1];if(t&&t.pending){t.error=m;t.pending=false;}renderMessages();toast(m,true);return;}if(ev.type==='busy')return;if(ev.type==='chatHint'){toast(m);return;}if(ev.type==='result'){text('result-text',m);$('result-panel').hidden=false;if(['search','test'].includes(lastAction)||page!=='deck')openSheet({title:lastAction==='test'?'模型测试反馈':lastAction==='search'?'搜索结果':'任务结果',kicker:'RESPONSE',detail:m});else{toast('任务结果已收到。');$('result-panel').scrollIntoView({block:'nearest',behavior:'auto'});}return;}if(ev.type==='import'){category='';$('skill-search').value='';invoke('state');}if(ev.type==='status'&&pending&&lastAction==='save')ackSave();toast(m);};
+window.onPilotChat=value=>{
+  try{if(typeof value==='string')value=JSON.parse(value);}catch(_){return;}
+  if(!value||typeof value!=='object')return;
+  chatBusy=false;syncSendButton();
+  const mode=value.mode||'ask',answer=typeof value.message==='string'?value.message:'',plan=value.plan||null;
+  // Replace the trailing pending placeholder with the real answer.
+  let t=null;for(let i=messages.length-1;i>=0;i--)if(messages[i].pending){t=messages[i];break;}
+  if(!t){messages.push({role:'assistant',text:'',mode});t=messages[messages.length-1];}
+  t.pending=false;t.text=answer||(plan?'已生成操作计划，请查看下方卡片。':'');t.mode=mode;if(plan)t.plan=plan;
+  renderMessages();
+};
+const mq=window.matchMedia('(prefers-reduced-motion: reduce)');let override=null;try{const saved=localStorage.getItem('pilot.reduced');if(saved==='true'||saved==='false')override=saved==='true';}catch(_){}
+function motion(){const less=override===null?mq.matches:override;document.documentElement.classList.toggle('reduce',less);$('motion-toggle').setAttribute('aria-checked',String(less));text('motion-label',less?'已启用 · 展示静态光学图形':'未启用 · 光学图形随触控响应');window.dispatchEvent(new Event('pilot-visibility'));}
+on('motion-toggle',()=>{override=$('motion-toggle').getAttribute('aria-checked')!=='true';try{localStorage.setItem('pilot.reduced',String(override));}catch(_){}motion();});if(mq.addEventListener)mq.addEventListener('change',motion);else if(mq.addListener)mq.addListener(motion);
+list('.mode-tab').forEach(b=>on(b.id,()=>setMode(b.dataset.mode)));
+window.addEventListener('pageshow',()=>invoke('state'));document.addEventListener('visibilitychange',()=>{if(!document.hidden)invoke('state');});motion();renderDeck();renderSettings();renderSkills();setMode('ask');renderMessages();invoke('state');
+})();

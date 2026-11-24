@@ -1,0 +1,1 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="qa.pilot.model"><application android:label="Pilot test model"/><instrumentation android:name=".PlanFixture" android:targetPackage="io.pilot.onething" android:label="Offline model response only"/></manifest>

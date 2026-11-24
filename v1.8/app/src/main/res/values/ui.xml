@@ -1,0 +1,7 @@
+<resources>
+  <string name="app_name">pilot one thing</string>
+  <string name="access_title">Pilot · 单任务辅助操作</string>
+  <string name="access_description">在你选择目标并预览任务后，逐步确认执行点击、翻页或草稿输入。空闲时不采集页面，不上传屏幕内容，可随时停止。</string>
+  <style name="PilotBaseTheme" parent="android:style/Theme.Material.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:colorAccent">#80efdc</item><item name="android:windowBackground">#09151d</item><item name="android:statusBarColor">#09151d</item><item name="android:navigationBarColor">#09151d</item><item name="android:windowLightStatusBar">false</item><item name="android:windowActionModeOverlay">true</item></style>
+  <style name="PilotTheme" parent="@style/PilotBaseTheme"/>
+</resources>
